@@ -1,64 +1,30 @@
 import React, { useState } from 'react';
+import { useCommons } from '../context/CommonsContext';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { Clock, CheckCircle2, XCircle, FileText, Plus } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, FileText, Plus, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface RequestItem {
-  id: string;
-  resourceName: string;
-  department: string;
-  requestedDates: string;
-  submittedAt: string;
-  purpose: string;
-  status: 'pending' | 'approved' | 'rejected';
-  statusLabel: string;
-  approverNote?: string;
-}
 
 export const RequestsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { requests, withdrawRequest } = useCommons();
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
-  const [requests, setRequests] = useState<RequestItem[]>([
-    {
-      id: 'REQ-2026-085',
-      resourceName: 'Subsonic Wind Tunnel Facility',
-      department: 'Aerospace Engineering',
-      requestedDates: '04 Nov 2026, 11:00 AM – 03:00 PM',
-      submittedAt: 'Yesterday at 10:00 AM',
-      purpose: 'Aerodynamic drag coefficient measurement on 3D-printed UAV wing sections.',
-      status: 'pending',
-      statusLabel: 'Pending Faculty Endorsement',
-      approverNote: 'Forwarded to Dr. Tariq Khan for test rig safety certification.'
-    },
-    {
-      id: 'REQ-2026-081',
-      resourceName: 'Sony Alpha A7 IV Kit',
-      department: 'Digital Arts & Media Center',
-      requestedDates: '31 Oct – 01 Nov 2026',
-      submittedAt: '28 Oct 2026',
-      purpose: 'High-res vision dataset capture for autonomous robot.',
-      status: 'approved',
-      statusLabel: 'Approved by Custodian',
-      approverNote: 'Approved by Prof. Ramesh Kulkarni. Ready for pickup at Media Desk.'
-    },
-    {
-      id: 'REQ-2026-077',
-      resourceName: 'NVIDIA DGX H100 Node (8-GPU Slice)',
-      department: 'High Performance Computing Facility',
-      requestedDates: '25 Oct 2026 (Continuous 48h Batch)',
-      submittedAt: '24 Oct 2026',
-      purpose: 'Pre-training transformer language models on campus research data.',
-      status: 'rejected',
-      statusLabel: 'Quota Reached — Resubmit',
-      approverNote: 'Cluster compute slice fully booked by Bio-Informatics symposium until Nov 05.'
-    }
-  ]);
+  const filteredRequests = requests.filter((r) => {
+    if (filter === 'pending') return r.status === 'pending';
+    if (filter === 'approved') return r.status === 'approved';
+    if (filter === 'rejected') return r.status === 'rejected' || r.status === 'cancelled';
+    return true;
+  });
 
-  const handleCancel = (id: string) => {
-    if (window.confirm('Cancel this pending resource request?')) {
-      setRequests(requests.filter(r => r.id !== id));
+  const handleWithdraw = (id: string, name: string) => {
+    if (window.confirm(`Withdraw requisition #${id} for ${name}?`)) {
+      withdrawRequest(id);
     }
   };
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const approvedCount = requests.filter(r => r.status === 'approved').length;
+  const rejectedCount = requests.filter(r => r.status === 'rejected' || r.status === 'cancelled').length;
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-[1400px] mx-auto">
@@ -82,98 +48,170 @@ export const RequestsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Info Notice regarding Part 1 integration boundary */}
-      <div className="p-4 bg-[#E7F2EC]/60 border border-[#CFE5D8] rounded-lg flex items-start gap-3 text-[12px] text-[#104B36]">
-        <FileText size={18} className="text-[#176B4A] flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold block text-[13px]">Part 1 Prototype — Requisition Queue</span>
-          <p className="mt-0.5 text-[#176B4A]">
-            Requests in this view demonstrate the workflow states required by institutional resource sharing. Real-time persistent state management and multi-stage faculty approvals will be connected in Part 2 by Anushka.
-          </p>
-        </div>
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-1 bg-white border border-[#E8EBE9] p-1 rounded-md w-fit text-[12px] font-medium">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-3 py-1.5 rounded transition-colors ${
+            filter === 'all' 
+              ? 'bg-[#176B4A] text-white shadow-xs' 
+              : 'text-[#858D91] hover:text-[#202B3C]'
+          }`}
+        >
+          All Requests ({requests.length})
+        </button>
+        <button
+          onClick={() => setFilter('pending')}
+          className={`px-3 py-1.5 rounded transition-colors ${
+            filter === 'pending' 
+              ? 'bg-[#176B4A] text-white shadow-xs' 
+              : 'text-[#858D91] hover:text-[#202B3C]'
+          }`}
+        >
+          Pending Review ({pendingCount})
+        </button>
+        <button
+          onClick={() => setFilter('approved')}
+          className={`px-3 py-1.5 rounded transition-colors ${
+            filter === 'approved' 
+              ? 'bg-[#176B4A] text-white shadow-xs' 
+              : 'text-[#858D91] hover:text-[#202B3C]'
+          }`}
+        >
+          Approved ({approvedCount})
+        </button>
+        <button
+          onClick={() => setFilter('rejected')}
+          className={`px-3 py-1.5 rounded transition-colors ${
+            filter === 'rejected' 
+              ? 'bg-[#176B4A] text-white shadow-xs' 
+              : 'text-[#858D91] hover:text-[#202B3C]'
+          }`}
+        >
+          Declined / Withdrawn ({rejectedCount})
+        </button>
       </div>
 
       {/* Requests List */}
       <div className="space-y-4">
-        {requests.map((req) => (
-          <div
-            key={req.id}
-            className="bg-white border border-[#E8EBE9] rounded-lg p-5 shadow-xs hover:border-[#D0D7D3] transition-colors"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#E8EBE9]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-[#858D91] uppercase tracking-wider">
-                    Requisition #{req.id}
-                  </span>
-                  <StatusBadge
-                    status={req.statusLabel}
-                    variant={req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : 'pending'}
-                    size="sm"
-                  />
-                </div>
-                <h3 className="text-[17px] font-semibold text-[#202B3C] mt-1">
-                  {req.resourceName}
-                </h3>
-              </div>
-
-              {/* Status Specific Actions */}
-              <div className="flex items-center gap-2">
-                {req.status === 'pending' && (
-                  <button
-                    onClick={() => handleCancel(req.id)}
-                    className="px-3 py-1.5 text-[12px] font-medium text-[#96372D] hover:bg-[#FDF0EE] rounded border border-[#F8D2CD] transition-colors"
-                  >
-                    Withdraw Request
-                  </button>
-                )}
-                {req.status === 'approved' && (
-                  <button
-                    onClick={() => navigate('/bookings')}
-                    className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#176B4A] hover:bg-[#104B36] rounded transition-colors"
-                  >
-                    Go to Booking Slip
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-[12px]">
-              <div>
-                <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Requested Schedule</span>
-                <span className="font-medium text-[#202B3C] block mt-0.5">{req.requestedDates}</span>
-                <span className="text-[11px] text-[#858D91]">Submitted: {req.submittedAt}</span>
-              </div>
-
-              <div>
-                <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Department Facility</span>
-                <span className="font-medium text-[#202B3C] block mt-0.5">{req.department}</span>
-                <span className="text-[11px] text-[#858D91]">Institution: Apex Institute of Technology</span>
-              </div>
-
-              <div>
-                <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Approval Status & Log</span>
-                <div className="flex items-start gap-1.5 mt-0.5">
-                  {req.status === 'approved' ? (
-                    <CheckCircle2 size={14} className="text-[#176B4A] flex-shrink-0 mt-0.5" />
-                  ) : req.status === 'rejected' ? (
-                    <XCircle size={14} className="text-[#96372D] flex-shrink-0 mt-0.5" />
-                  ) : (
-                    <Clock size={14} className="text-[#8A5B18] flex-shrink-0 mt-0.5" />
-                  )}
-                  <span className="text-[#475467] text-[12px] leading-tight">
-                    {req.approverNote}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-[#E8EBE9] text-[12px] text-[#858D91]">
-              <span className="font-semibold text-[#202B3C]">Project Justification: </span>
-              <span className="italic">{req.purpose}</span>
+        {filteredRequests.length === 0 ? (
+          <div className="bg-white border border-[#E8EBE9] rounded-lg p-10 text-center space-y-2">
+            <FileText size={28} className="mx-auto text-[#CFE5D8]" />
+            <h4 className="text-[15px] font-semibold text-[#202B3C]">
+              No requisitions in this tab
+            </h4>
+            <p className="text-[12px] text-[#858D91]">
+              Browse available campus laboratories and equipment to schedule your next reservation.
+            </p>
+            <div className="pt-2">
+              <button
+                onClick={() => navigate('/discover')}
+                className="px-4 py-2 text-[12px] font-medium text-white bg-[#176B4A] rounded-md hover:bg-[#104B36] transition-colors"
+              >
+                Browse Catalog
+              </button>
             </div>
           </div>
-        ))}
+        ) : (
+          filteredRequests.map((req) => (
+            <div
+              key={req.id}
+              className="bg-white border border-[#E8EBE9] rounded-lg p-5 shadow-xs hover:border-[#D0D7D3] transition-colors"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#E8EBE9]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-[#858D91] uppercase tracking-wider font-mono">
+                      Ref #{req.id}
+                    </span>
+                    <StatusBadge
+                      status={req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Declined' : req.status === 'cancelled' ? 'Withdrawn' : 'Pending Review'}
+                      variant={req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : req.status === 'cancelled' ? 'cancelled' : 'pending'}
+                      size="sm"
+                    />
+                  </div>
+                  <h3 
+                    onClick={() => navigate(`/resource/${req.resourceId}`)}
+                    className="text-[17px] font-semibold text-[#202B3C] hover:text-[#176B4A] transition-colors cursor-pointer mt-1"
+                  >
+                    {req.resourceName}
+                  </h3>
+                </div>
+
+                {/* Status Specific Actions */}
+                <div className="flex items-center gap-2">
+                  {req.status === 'pending' && (
+                    <button
+                      onClick={() => handleWithdraw(req.id, req.resourceName)}
+                      className="px-3 py-1.5 text-[12px] font-medium text-[#96372D] hover:bg-[#FDF0EE] rounded border border-[#F8D2CD] transition-colors"
+                    >
+                      Withdraw Requisition
+                    </button>
+                  )}
+                  {req.status === 'approved' && (
+                    <button
+                      onClick={() => navigate('/bookings')}
+                      className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#176B4A] hover:bg-[#104B36] rounded transition-colors flex items-center gap-1 shadow-xs"
+                    >
+                      <span>View Confirmed Booking</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate(`/resource/${req.resourceId}`)}
+                    className="px-3 py-1.5 text-[12px] font-medium text-[#202B3C] bg-white border border-[#E8EBE9] rounded hover:bg-[#F3F4F3] transition-colors"
+                  >
+                    Resource Info
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-[12px]">
+                <div>
+                  <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Requested Schedule</span>
+                  <span className="font-medium text-[#202B3C] block mt-0.5">
+                    {req.requestedDate} ({req.startTime} – {req.endTime})
+                  </span>
+                  <span className="text-[11px] text-[#858D91]">Submitted: {req.submittedAt}</span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Department Facility</span>
+                  <span className="font-medium text-[#202B3C] block mt-0.5">{req.resourceLocation}</span>
+                  <span className="text-[11px] text-[#858D91]">Endorsed: {req.supervisor}</span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] text-[#858D91] uppercase font-semibold block">Custodian Review Status</span>
+                  <div className="flex items-start gap-1.5 mt-0.5">
+                    {req.status === 'approved' ? (
+                      <CheckCircle2 size={14} className="text-[#176B4A] flex-shrink-0 mt-0.5" />
+                    ) : req.status === 'rejected' ? (
+                      <XCircle size={14} className="text-[#96372D] flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <Clock size={14} className="text-[#8A5B18] flex-shrink-0 mt-0.5" />
+                    )}
+                    <span className="text-[#475467] text-[12px] leading-tight">
+                      {req.approverNote || 'Requisition under evaluation.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-[#E8EBE9] text-[12px] text-[#858D91] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="font-semibold text-[#202B3C]">Project Justification: </span>
+                  <span className="italic">{req.purpose}</span>
+                </div>
+                {req.status === 'approved' && (
+                  <span className="text-[11px] font-medium text-[#176B4A] bg-[#E7F2EC] px-2 py-0.5 rounded border border-[#CFE5D8]">
+                    Ready for scheduled physical pickup
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { sampleResources } from '../../data/mockData';
+import { useCommons } from '../../context/CommonsContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { 
   Camera, 
@@ -14,8 +14,9 @@ import { useNavigate } from 'react-router-dom';
 
 export const RecentlyAdded: React.FC = () => {
   const navigate = useNavigate();
+  const { resources } = useCommons();
   // Take top 5 sample resources matching prompt requirements
-  const recentList = sampleResources.slice(0, 5);
+  const recentList = resources.slice(0, 5);
 
   const getCategoryIcon = (name: string) => {
     switch (name.toLowerCase()) {
@@ -101,7 +102,7 @@ export const RecentlyAdded: React.FC = () => {
           onClick={() => navigate('/discover')}
           className="w-full py-2 px-3 text-[12px] font-medium text-[#202B3C] bg-[#F8FAF9] hover:bg-[#E7F2EC] hover:text-[#176B4A] border border-[#E8EBE9] rounded-md transition-colors"
         >
-          View All Cataloged Resources ({sampleResources.length})
+          View All Cataloged Resources ({resources.length})
         </button>
       </div>
     </div>

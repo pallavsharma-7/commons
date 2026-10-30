@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { currentUser } from '../data/mockData';
-import { User, Shield, Bell, Key, Check } from 'lucide-react';
+import { useCommons } from '../context/CommonsContext';
+import { User, Shield, Bell, Key, Check, RotateCcw } from 'lucide-react';
 
 interface SettingsPageProps {
   currentRole: 'student' | 'owner' | 'admin';
@@ -11,14 +11,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   currentRole,
   onRoleChange,
 }) => {
+  const { currentUser, setCurrentUser, resetToMockData } = useCommons();
+
+  const [name, setName] = useState(currentUser.name);
+  const [department, setDepartment] = useState(currentUser.department);
   const [saved, setSaved] = useState(false);
+  const [resetMessage, setResetMessage] = useState(false);
   const [notificationsEmail, setNotificationsEmail] = useState(true);
   const [notificationsSms, setNotificationsSms] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentUser({
+      ...currentUser,
+      name,
+      department,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleResetData = () => {
+    if (window.confirm('Reset all bookings, requisitions, newly added resources, and activity history back to clean hackathon demo data?')) {
+      resetToMockData();
+      setName('Pallav Sharma');
+      setDepartment('Computer Science & Engineering');
+      setResetMessage(true);
+      setTimeout(() => setResetMessage(false), 3500);
+    }
   };
 
   return (
@@ -37,6 +57,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="p-3 bg-[#E7F2EC] text-[#176B4A] border border-[#CFE5D8] rounded-md text-[13px] font-medium flex items-center gap-2">
           <Check size={16} />
           <span>Institutional settings preferences saved successfully.</span>
+        </div>
+      )}
+
+      {resetMessage && (
+        <div className="p-3 bg-[#E7F2EC] text-[#176B4A] border border-[#CFE5D8] rounded-md text-[13px] font-medium flex items-center gap-2">
+          <Check size={16} />
+          <span>All mock resources, bookings, and audit records reset to default demo state.</span>
         </div>
       )}
 
@@ -107,7 +134,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </label>
               <input
                 type="text"
-                defaultValue={currentUser.name}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 border border-[#E8EBE9] rounded-md text-[#202B3C] outline-none focus:border-[#176B4A]"
               />
             </div>
@@ -130,7 +158,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </label>
               <input
                 type="text"
-                defaultValue={currentUser.department}
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
                 className="w-full px-3 py-2 border border-[#E8EBE9] rounded-md text-[#202B3C] outline-none focus:border-[#176B4A]"
               />
             </div>
@@ -214,6 +243,29 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </button>
         </div>
       </form>
+
+      {/* Demo Reset Card */}
+      <div className="bg-white border border-[#E8EBE9] rounded-lg p-5 shadow-xs space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b border-[#E8EBE9]">
+          <RotateCcw size={16} className="text-[#858D91]" />
+          <h2 className="text-[15px] font-semibold text-[#202B3C]">
+            Prototype Demonstration & State Management
+          </h2>
+        </div>
+        <p className="text-[12px] text-[#858D91]">
+          Reset all local storage state back to clean initial hackathon demo records (initial resources, bookings, and activity logs).
+        </p>
+        <div>
+          <button
+            type="button"
+            onClick={handleResetData}
+            className="px-3.5 py-2 text-[12px] font-medium text-[#96372D] hover:bg-[#FDF0EE] rounded border border-[#F8D2CD] transition-colors flex items-center gap-1.5"
+          >
+            <RotateCcw size={13} />
+            <span>Reset Prototype to Default Mock Data</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

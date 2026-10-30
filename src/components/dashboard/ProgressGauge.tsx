@@ -1,8 +1,13 @@
 import React from 'react';
-import { bookingOverviewStats } from '../../data/mockData';
+import { useCommons } from '../../context/CommonsContext';
 
 export const ProgressGauge: React.FC = () => {
-  const { total, completed, inProgress, pending } = bookingOverviewStats;
+  const { bookings } = useCommons();
+
+  const total = bookings.length || 1;
+  const completed = bookings.filter(b => b.status === 'completed').length;
+  const inProgress = bookings.filter(b => b.status === 'in_progress' || b.status === 'approved').length;
+  const pending = bookings.filter(b => b.status === 'pending').length;
 
   const completedPct = Math.round((completed / total) * 100);
   const inProgressPct = Math.round((inProgress / total) * 100);
