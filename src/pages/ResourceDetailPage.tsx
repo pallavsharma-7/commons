@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { sampleResources } from '../data/mockData';
+import { useCommons } from '../context/CommonsContext';
+import { doTimesOverlap } from '../lib/timeUtils';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { RequestModal } from '../components/resources/RequestModal';
 import { 
@@ -21,19 +22,58 @@ import {
 export const ResourceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { resources, bookings } = useCommons();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState('Today');
+  const [selectedDay, setSelectedDay] = useState<'Today' | 'Tomorrow' | 'Day After'>('Today');
 
-  const resource = sampleResources.find((r) => r.id === id) || sampleResources[0];
+  const resource = resources.find((r) => r.id === id) || resources[0];
 
-  // Schedule representation for the week
-  const scheduleSlots = [
-    { time: '09:00 AM – 11:00 AM', status: 'Booked', user: 'Bio-Imaging Group', available: false },
-    { time: '11:00 AM – 01:00 PM', status: 'Available', user: 'Open Slot', available: true },
-    { time: '01:00 PM – 03:00 PM', status: 'Maintenance Window', user: 'Technician Check', available: false },
-    { time: '03:00 PM – 05:00 PM', status: 'Available', user: 'Open Slot', available: true },
-    { time: '05:00 PM – 07:00 PM', status: 'Reserved', user: 'Capstone Team 4', available: false },
-  ];
+  // Schedule representation for the selected day
+  const scheduleSlots = useMemo(() => {
+    if (!resource) return [];
+
+    const baseSlots = [
+      { start: '09:00 AM', end: '11:00 AM', label: '09:00 AM – 11:00 AM' },
+      { start: '11:00 AM', end: '01:00 PM', label: '11:00 AM – 01:00 PM' },
+      { start: '01:00 PM', end: '03:00 PM', label: '01:00 PM – 03:00 PM' },
+      { start: '03:00 PM', end: '05:00 PM', label: '03:00 PM – 05:00 PM' },
+      { start: '05:00 PM', end: '07:00 PM', label: '05:00 PM – 07:00 PM' },
+    ];
+
+    if (resource.status === 'maintenance' || resource.isSuspended) {
+      return baseSlots.map(slot => ({
+        time: slot.label,
+        status: 'Maintenance',
+        user: resource.statusText || 'Quarantine / Maintenance',
+        available: false,
+      }));
+    }
+
+    return baseSlots.map((slot) => {
+      // Find any confirmed/in-progress booking that overlaps
+      const activeBooking = bookings.find(b => {
+        if (b.resourceId !== resource.id) return false;
+        if (b.status !== 'approved' && b.status !== 'in_progress') return false;
+        return doTimesOverlap(slot.start, slot.end, b.startTime, b.endTime);
+      });
+
+      if (activeBooking) {
+        return {
+          time: slot.label,
+          status: activeBooking.status === 'in_progress' ? 'In Use' : 'Reserved',
+          user: activeBooking.userName || 'Booked Slot',
+          available: false,
+        };
+      }
+
+      return {
+        time: slot.label,
+        status: 'Available',
+        user: 'Open for Booking',
+        available: true,
+      };
+    });
+  }, [resource, bookings]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 space-y-6 max-w-[1400px] mx-auto">
@@ -192,7 +232,7 @@ export const ResourceDetailPage: React.FC = () => {
 
             {/* Day Selector Pills */}
             <div className="grid grid-cols-3 gap-1 text-[11px] font-medium text-center">
-              {['Today', 'Tomorrow', 'Day After'].map((day) => (
+              {(['Today', 'Tomorrow', 'Day After'] as const).map((day) => (
                 <button
                   key={day}
                   onClick={() => setSelectedDay(day)}

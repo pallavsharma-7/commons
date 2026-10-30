@@ -14,7 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { Logo } from '../common/Logo';
-import { currentUser } from '../../data/mockData';
+import { useCommons } from '../../context/CommonsContext';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -28,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRoleChange,
 }) => {
   const navigate = useNavigate();
+  const { currentUser } = useCommons();
 
   const mainNavItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -279,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="p-4 border-t border-[#E8EBE9] bg-[#FAFBFA]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#E7F2EC] text-[#176B4A] flex items-center justify-center font-semibold text-xs border border-[#CFE5D8] flex-shrink-0">
-            PS
+            {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[12px] font-semibold text-[#202B3C] truncate">

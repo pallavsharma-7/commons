@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Menu, Bell, Search, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { currentUser } from '../../data/mockData';
+import { useCommons } from '../../context/CommonsContext';
+import { NotificationDropdown } from '../notifications/NotificationDropdown';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -13,6 +14,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentRole,
 }) => {
   const navigate = useNavigate();
+  const { currentUser, unreadNotificationCount } = useCommons();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const roleLabelMap = {
     student: 'Student Researcher',
@@ -20,8 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
     admin: 'System Administrator',
   };
 
+  const userInitials = currentUser.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <header className="h-[68px] px-6 bg-white border-b border-[#E8EBE9] flex items-center justify-between select-none">
+    <header className="h-[68px] px-6 bg-white border-b border-[#E8EBE9] flex items-center justify-between select-none relative z-30">
       {/* Left: Mobile hamburger & Institutional identification */}
       <div className="flex items-center gap-3">
         <button
@@ -61,13 +71,20 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => navigate('/activity')}
+            onClick={() => setNotificationsOpen(!notificationsOpen)}
             className="p-2 text-[#858D91] hover:text-[#202B3C] hover:bg-[#F3F4F3] rounded-md transition-colors relative"
             aria-label="Notifications"
           >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#176B4A]" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#176B4A] ring-2 ring-white" />
+            )}
           </button>
+
+          <NotificationDropdown
+            isOpen={notificationsOpen}
+            onClose={() => setNotificationsOpen(false)}
+          />
         </div>
 
         {/* User Pill */}
@@ -76,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2.5 pl-3 border-l border-[#E8EBE9] cursor-pointer group"
         >
           <div className="w-8 h-8 rounded-full bg-[#176B4A] text-white flex items-center justify-center font-medium text-xs shadow-xs">
-            PS
+            {userInitials}
           </div>
           <div className="hidden md:flex flex-col text-left">
             <span className="text-[12px] font-semibold text-[#202B3C] group-hover:text-[#176B4A] transition-colors leading-tight">
@@ -91,3 +108,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Resource } from '../../types';
-import { X, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, AlertCircle, CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { useCommons } from '../../context/CommonsContext';
+import { useNavigate } from 'react-router-dom';
 
 interface RequestModalProps {
   isOpen: boolean;
@@ -13,30 +15,89 @@ export const RequestModal: React.FC<RequestModalProps> = ({
   onClose,
   resource,
 }) => {
+  const navigate = useNavigate();
+  const { createBookingRequest, isSlotAvailable } = useCommons();
+
   const [startDate, setStartDate] = useState('2026-11-02');
   const [startTime, setStartTime] = useState('10:00');
   const [endTime, setEndTime] = useState('13:00');
   const [purpose, setPurpose] = useState('');
   const [supervisor, setSupervisor] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
+
+  // Check if slot is available
+  const isAvailable = useMemo(() => {
+    if (!resource) return false;
+    return isSlotAvailable(resource.id, startDate, startTime, endTime);
+  }, [resource, startDate, startTime, endTime, isSlotAvailable]);
 
   if (!isOpen || !resource) return null;
 
+  const isUnderMaintenance = resource.status === 'maintenance' || resource.isSuspended;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate submission to approval queue (Part 1 proto)
-    setSubmitted(true);
+    setErrorMessage('');
+
+    if (isUnderMaintenance) {
+      setErrorMessage('This resource is currently under maintenance or suspended and cannot be booked.');
+      return;
+    }
+
+    if (!isAvailable) {
+      setErrorMessage('The selected time slot conflicts with an existing booking. Please pick another time or date.');
+      return;
+    }
+
+    if (!agreed) {
+      setErrorMessage('You must acknowledge and agree to institutional safety and return rules.');
+      return;
+    }
+
+    const res = createBookingRequest({
+      resourceId: resource.id,
+      requestedDate: startDate,
+      startTime: startTime.includes(':') && !startTime.includes(' ') 
+        ? formatTimeWithMeridian(startTime) 
+        : startTime,
+      endTime: endTime.includes(':') && !endTime.includes(' ') 
+        ? formatTimeWithMeridian(endTime) 
+        : endTime,
+      purpose,
+      supervisor,
+    });
+
+    if (res.success && res.requestId) {
+      setSubmittedRequestId(res.requestId);
+    } else {
+      setErrorMessage(res.message);
+    }
   };
 
   const handleReset = () => {
-    setSubmitted(false);
+    setSubmittedRequestId(null);
     setPurpose('');
     setSupervisor('');
+    setAgreed(false);
+    setErrorMessage('');
     onClose();
   };
 
+  function formatTimeWithMeridian(t: string): string {
+    const parts = t.split(':');
+    let hours = parseInt(parts[0], 10);
+    const mins = parts[1] || '00';
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = hours < 10 ? `0${hours}` : `${hours}`;
+    return `${hoursStr}:${mins} ${ampm}`;
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#202B3C]/40 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#202B3C]/50 backdrop-blur-xs">
       <div 
         className="bg-white rounded-lg border border-[#E8EBE9] shadow-lg w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
@@ -59,31 +120,54 @@ export const RequestModal: React.FC<RequestModalProps> = ({
           </button>
         </div>
 
-        {submitted ? (
+        {submittedRequestId ? (
           <div className="p-6 text-center space-y-4">
             <div className="w-12 h-12 rounded-full bg-[#E7F2EC] text-[#176B4A] flex items-center justify-center mx-auto">
               <CheckCircle2 size={28} />
             </div>
             <div>
-              <h4 className="text-[16px] font-semibold text-[#202B3C]">
-                Request Placed in Approval Queue
+              <span className="text-[11px] font-mono font-semibold text-[#176B4A] bg-[#E7F2EC] px-2.5 py-1 rounded-full border border-[#CFE5D8]">
+                Requisition #{submittedRequestId} Logged
+              </span>
+              <h4 className="text-[16px] font-semibold text-[#202B3C] mt-2">
+                Requisition Placed in Custodian Queue
               </h4>
-              <p className="text-[13px] text-[#858D91] mt-1 max-w-sm mx-auto">
-                Your reservation request for <strong>{resource.name}</strong> has been logged with ID <strong>REQ-2026-94</strong>. It is currently under custodian review.
+              <p className="text-[13px] text-[#858D91] mt-1.5 max-w-sm mx-auto leading-relaxed">
+                Your reservation request for <strong>{resource.name}</strong> on <strong>{startDate}</strong> has been saved persistently and sent to custodian <strong>{resource.custodianName}</strong>.
               </p>
             </div>
 
-            <div className="bg-[#FEF6E9] border border-[#F8E3C2] p-3 rounded text-left text-[12px] text-[#8A5B18] flex items-start gap-2">
-              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
-              <span>
-                <strong>Note on Part 1 Prototype:</strong> Booking persistence and multi-tier approval workflows will be integrated by collaborator Anushka in Part 2.
-              </span>
+            <div className="bg-[#F8FAF9] border border-[#E8EBE9] p-3 rounded text-left text-[12px] text-[#475467] space-y-1">
+              <div className="flex justify-between">
+                <span className="text-[#858D91]">Scheduled Window:</span>
+                <span className="font-semibold text-[#202B3C]">{startDate} ({startTime} – {endTime})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#858D91]">Endorsed by:</span>
+                <span className="font-medium text-[#202B3C]">{supervisor}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#858D91]">Current Status:</span>
+                <span className="text-[#8A5B18] font-semibold">Pending Approval</span>
+              </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-2">
               <button
+                type="button"
+                onClick={() => {
+                  handleReset();
+                  navigate('/requests');
+                }}
+                className="flex-1 py-2 px-3 bg-[#176B4A] text-white text-[13px] font-medium rounded-md hover:bg-[#104B36] transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <span>Track in My Requests</span>
+                <ArrowRight size={14} />
+              </button>
+              <button
+                type="button"
                 onClick={handleReset}
-                className="w-full py-2 bg-[#176B4A] text-white text-[13px] font-medium rounded-md hover:bg-[#104B36] transition-colors"
+                className="py-2 px-4 bg-white border border-[#E8EBE9] text-[#202B3C] text-[13px] font-medium rounded-md hover:bg-[#F3F4F3] transition-colors"
               >
                 Done
               </button>
@@ -102,6 +186,24 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                 {resource.hourlyRate || 'Institutional'}
               </span>
             </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="p-3 bg-[#FDF0EE] border border-[#F8D2CD] rounded-md text-[12px] text-[#96372D] flex items-start gap-2">
+                <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Maintenance Warning */}
+            {isUnderMaintenance && (
+              <div className="p-3 bg-[#FEF6E9] border border-[#F8E3C2] rounded-md text-[12px] text-[#8A5B18] flex items-start gap-2">
+                <AlertTriangle size={15} className="flex-shrink-0 mt-0.5" />
+                <span>
+                  <strong>Unavailable:</strong> This resource is currently under maintenance or suspension. New requisitions cannot be scheduled.
+                </span>
+              </div>
+            )}
 
             {/* Date and Time pickers */}
             <div className="grid grid-cols-2 gap-3">
@@ -145,6 +247,33 @@ export const RequestModal: React.FC<RequestModalProps> = ({
               </div>
             </div>
 
+            {/* Live Availability Status Indicator */}
+            {!isUnderMaintenance && (
+              <div className={`p-2.5 rounded-md border text-[12px] flex items-center justify-between ${
+                isAvailable 
+                  ? 'bg-[#E7F2EC]/40 border-[#CFE5D8] text-[#176B4A]' 
+                  : 'bg-[#FEF6E9] border-[#F8E3C2] text-[#8A5B18]'
+              }`}>
+                <div className="flex items-center gap-1.5">
+                  {isAvailable ? (
+                    <ShieldCheck size={14} className="text-[#176B4A]" />
+                  ) : (
+                    <AlertTriangle size={14} className="text-[#8A5B18]" />
+                  )}
+                  <span>
+                    {isAvailable 
+                      ? 'Slot Available: No scheduling conflicts detected for this window.' 
+                      : 'Slot Overlap: Conflicting booking exists for this slot.'}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                  isAvailable ? 'bg-[#176B4A] text-white' : 'bg-[#D4973B] text-white'
+                }`}>
+                  {isAvailable ? 'Available' : 'Conflict'}
+                </span>
+              </div>
+            )}
+
             {/* Faculty Supervisor Endorsement */}
             <div>
               <label className="block text-[11px] font-semibold text-[#858D91] uppercase mb-1">
@@ -180,6 +309,8 @@ export const RequestModal: React.FC<RequestModalProps> = ({
               <input 
                 type="checkbox" 
                 id="terms" 
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
                 required 
                 className="mt-0.5 rounded border-[#E8EBE9] text-[#176B4A] focus:ring-[#176B4A]" 
               />
@@ -199,7 +330,12 @@ export const RequestModal: React.FC<RequestModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-[12px] font-medium text-white bg-[#176B4A] hover:bg-[#104B36] rounded-md transition-colors shadow-xs"
+                disabled={isUnderMaintenance || !isAvailable}
+                className={`px-4 py-1.5 text-[12px] font-medium text-white rounded-md transition-colors shadow-xs ${
+                  isUnderMaintenance || !isAvailable
+                    ? 'bg-[#A3B8AF] cursor-not-allowed'
+                    : 'bg-[#176B4A] hover:bg-[#104B36]'
+                }`}
               >
                 Submit Request
               </button>

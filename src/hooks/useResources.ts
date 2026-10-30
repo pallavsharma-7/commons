@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
-import { sampleResources } from '../data/mockData';
-import type { Resource, ResourceCategory } from '../types';
+import { useCommons } from '../context/CommonsContext';
+import type { ResourceCategory } from '../types';
 
 export function useResources() {
-  const [resources, setResources] = useState<Resource[]>(sampleResources);
+  const { resources, addResource } = useCommons();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ResourceCategory | 'All'>('All');
   const [availability, setAvailability] = useState<'all' | 'available' | 'reserved'>('all');
@@ -13,7 +13,8 @@ export function useResources() {
       const matchSearch =
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.department.toLowerCase().includes(search.toLowerCase()) ||
-        item.location.toLowerCase().includes(search.toLowerCase());
+        item.location.toLowerCase().includes(search.toLowerCase()) ||
+        item.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
 
       const matchCategory = category === 'All' || item.category === category;
 
@@ -37,6 +38,6 @@ export function useResources() {
     setCategory,
     availability,
     setAvailability,
-    setResources,
+    addResource,
   };
 }

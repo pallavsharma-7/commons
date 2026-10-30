@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { sampleResources } from '../data/mockData';
+import { useCommons } from '../context/CommonsContext';
 import type { ResourceCategory, Resource } from '../types';
 import { SearchBar } from '../components/common/SearchBar';
 import { FilterBar } from '../components/common/FilterBar';
@@ -19,6 +19,7 @@ const CATEGORIES: (ResourceCategory | 'All')[] = [
 ];
 
 export const DiscoverPage: React.FC = () => {
+  const { resources } = useCommons();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ResourceCategory | 'All'>('All');
   const [selectedAvailability, setSelectedAvailability] = useState<'all' | 'available' | 'reserved'>('all');
@@ -29,7 +30,7 @@ export const DiscoverPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filteredResources = useMemo(() => {
-    return sampleResources.filter((res) => {
+    return resources.filter((res) => {
       // Search matching
       const matchesSearch = 
         res.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,7 +53,7 @@ export const DiscoverPage: React.FC = () => {
 
       return matchesSearch && matchesCategory && matchesAvailability;
     });
-  }, [searchQuery, selectedCategory, selectedAvailability]);
+  }, [resources, searchQuery, selectedCategory, selectedAvailability]);
 
   const handleOpenRequest = (res: Resource) => {
     setSelectedResource(res);

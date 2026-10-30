@@ -8,7 +8,7 @@ import {
   Clock, 
   RotateCcw 
 } from 'lucide-react';
-import { metricsData, sampleResources } from '../data/mockData';
+import { useCommons } from '../context/CommonsContext';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { AnalyticsCard } from '../components/dashboard/AnalyticsCard';
 import { UpcomingActivity } from '../components/dashboard/UpcomingActivity';
@@ -20,12 +20,13 @@ import type { Resource } from '../types';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { metrics, resources } = useCommons();
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [selectedResourceForModal, setSelectedResourceForModal] = useState<Resource | null>(null);
 
   const handleOpenGeneralRequest = () => {
     // Default to the first available resource or open modal
-    setSelectedResourceForModal(sampleResources[0]);
+    setSelectedResourceForModal(resources[0] || null);
     setIsRequestModalOpen(true);
   };
 
@@ -66,7 +67,7 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Available Resources"
-          value={metricsData.availableResources}
+          value={metrics.availableResources}
           description="Ready for immediate campus booking"
           trendText="+3 this week"
           trendDirection="up"
@@ -75,29 +76,30 @@ export const DashboardPage: React.FC = () => {
         />
         <MetricCard
           label="Active Bookings"
-          value={metricsData.activeBookings}
+          value={metrics.activeBookings}
           description="In use across laboratories & studios"
-          trendText="10 currently active"
+          trendText={`${metrics.activeBookings} currently active`}
           trendDirection="neutral"
           icon={CalendarCheck}
         />
         <MetricCard
           label="Pending Requests"
-          value={metricsData.pendingRequests}
+          value={metrics.pendingRequests}
           description="Awaiting faculty/custodian approval"
-          trendText="4 urgent"
-          trendDirection="down"
+          trendText={metrics.pendingRequests > 0 ? `${metrics.pendingRequests} urgent` : "All reviewed"}
+          trendDirection={metrics.pendingRequests > 0 ? "down" : "neutral"}
           icon={Clock}
         />
         <MetricCard
           label="Completed Returns"
-          value={metricsData.completedReturns}
+          value={metrics.completedReturns}
           description="Safely inspected & restocked this cycle"
           trendText="100% on-time"
           trendDirection="up"
           icon={RotateCcw}
         />
       </div>
+
 
       {/* Main 2-Column Dashboard Composition: Wide Central Area (left) + Compact Right Panel */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">

@@ -1,11 +1,96 @@
-import React from 'react';
-import { upcomingActivities } from '../../data/mockData';
+import React, { useMemo } from 'react';
+import { useCommons } from '../../context/CommonsContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { Calendar, Clock, AlertCircle, Sparkles, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const UpcomingActivity: React.FC = () => {
   const navigate = useNavigate();
+  const { bookings, requests } = useCommons();
+
+  const activityList = useMemo(() => {
+    const list: {
+      id: string;
+      type: string;
+      title: string;
+      subtitle: string;
+      time: string;
+      location: string;
+      actionText: string;
+      badge: string;
+      badgeType: 'confirmed' | 'warning' | 'pending' | 'available' | 'in_progress';
+      target: string;
+    }[] = [];
+
+    // 1. In-progress bookings (Return deadline alert)
+    const inProgress = bookings.filter(b => b.status === 'in_progress');
+    inProgress.forEach(b => {
+      list.push({
+        id: `act-in-${b.id}`,
+        type: 'Return deadline',
+        title: b.resourceName,
+        subtitle: `In physical use by ${b.userName}`,
+        time: b.returnDeadline || 'Today by 5:00 PM',
+        location: b.resourceLocation,
+        actionText: 'Inspect',
+        badge: 'Due Today',
+        badgeType: 'warning',
+        target: '/bookings',
+      });
+    });
+
+    // 2. Approved upcoming bookings
+    const approved = bookings.filter(b => b.status === 'approved');
+    approved.forEach(b => {
+      list.push({
+        id: `act-app-${b.id}`,
+        type: 'Upcoming booking',
+        title: b.resourceName,
+        subtitle: `Confirmed for ${b.userName} (${b.userDepartment})`,
+        time: `${b.startDate}, ${b.startTime}`,
+        location: b.resourceLocation,
+        actionText: 'View Details',
+        badge: 'Confirmed',
+        badgeType: 'confirmed',
+        target: '/bookings',
+      });
+    });
+
+    // 3. Pending requests
+    const pending = requests.filter(r => r.status === 'pending');
+    pending.forEach(r => {
+      list.push({
+        id: `act-pend-${r.id}`,
+        type: 'Pending approval',
+        title: r.resourceName,
+        subtitle: `Requisition #${r.id} under custodian evaluation`,
+        time: r.submittedAt,
+        location: r.resourceLocation,
+        actionText: 'Track Status',
+        badge: 'In Review',
+        badgeType: 'pending',
+        target: '/requests',
+      });
+    });
+
+    // If list is small, add default availability alert
+    if (list.length < 4) {
+      list.push({
+        id: 'act-alert-avail',
+        type: 'Availability alert',
+        title: 'NVIDIA DGX H100 Node',
+        subtitle: 'Compute slices open for machine learning scheduling',
+        time: 'Open for scheduling',
+        location: 'HPC Data Center',
+        actionText: 'Reserve Slot',
+        badge: 'Available',
+        badgeType: 'available',
+        target: '/discover',
+      });
+    }
+
+    return list.slice(0, 4);
+  }, [bookings, requests]);
 
   const getIconForType = (type: string) => {
     switch (type.toLowerCase()) {
@@ -17,18 +102,6 @@ export const UpcomingActivity: React.FC = () => {
         return <AlertCircle size={14} className="text-[#265375]" />;
       default:
         return <Sparkles size={14} className="text-[#176B4A]" />;
-    }
-  };
-
-  const handleAction = (item: typeof upcomingActivities[0]) => {
-    if (item.type.toLowerCase().includes('booking')) {
-      navigate('/bookings');
-    } else if (item.type.toLowerCase().includes('approval')) {
-      navigate('/requests');
-    } else if (item.type.toLowerCase().includes('return')) {
-      navigate('/bookings');
-    } else {
-      navigate('/discover');
     }
   };
 
@@ -55,7 +128,7 @@ export const UpcomingActivity: React.FC = () => {
 
       {/* List */}
       <div className="divide-y divide-[#E8EBE9] py-1">
-        {upcomingActivities.map((item) => (
+        {activityList.map((item) => (
           <div key={item.id} className="py-3 flex items-start justify-between gap-3 group">
             <div className="flex items-start gap-2.5 min-w-0">
               <div className="mt-0.5 p-1.5 rounded bg-[#F3F4F3] border border-[#E8EBE9] flex-shrink-0">
@@ -84,7 +157,7 @@ export const UpcomingActivity: React.FC = () => {
 
             {/* Action button */}
             <button
-              onClick={() => handleAction(item)}
+              onClick={() => navigate(item.target)}
               className="flex-shrink-0 px-2.5 py-1 text-[11px] font-medium text-[#176B4A] bg-[#E7F2EC] hover:bg-[#D5EADF] rounded border border-[#CFE5D8] transition-colors self-center"
             >
               {item.actionText}

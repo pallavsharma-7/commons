@@ -1,11 +1,14 @@
 import React from 'react';
-import { recentRequests } from '../../data/mockData';
+import { useCommons } from '../../context/CommonsContext';
 import { StatusBadge } from '../common/StatusBadge';
 import { Clock, User, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const RecentRequests: React.FC = () => {
   const navigate = useNavigate();
+  const { requests } = useCommons();
+
+  const recentList = requests.slice(0, 5);
 
   return (
     <div className="bg-white border border-[#E8EBE9] rounded-lg p-5 shadow-xs flex flex-col justify-between">
@@ -30,7 +33,7 @@ export const RecentRequests: React.FC = () => {
 
       {/* Requests List */}
       <div className="divide-y divide-[#E8EBE9] py-1">
-        {recentRequests.map((req) => (
+        {recentList.map((req) => (
           <div key={req.id} className="py-3 flex items-start justify-between gap-3 group">
             <div className="flex items-start gap-2.5 min-w-0">
               <div className="mt-0.5 w-7 h-7 rounded-md bg-[#F3F4F3] border border-[#E8EBE9] flex items-center justify-center flex-shrink-0 text-[#858D91]">
@@ -46,26 +49,27 @@ export const RecentRequests: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-[12px] text-[#858D91] truncate mt-0.5">
-                  {req.description}
+                  {req.purpose}
                 </p>
                 <div className="flex items-center gap-2 text-[11px] text-[#697479] mt-1 font-mono">
                   <Clock size={11} className="text-[#858D91]" />
-                  <span>{req.date}</span>
-                  <span className="hidden md:inline">• {req.department}</span>
+                  <span>{req.submittedAt}</span>
+                  <span className="hidden md:inline">• {req.userDepartment}</span>
                 </div>
               </div>
             </div>
 
             <div className="flex-shrink-0 self-center">
               <StatusBadge 
-                status={req.status} 
-                variant={req.status === 'Approved' ? 'approved' : req.status === 'In Progress' ? 'in_progress' : req.status === 'Pending' ? 'pending' : 'completed'} 
+                status={req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Declined' : req.status === 'cancelled' ? 'Withdrawn' : 'Pending'} 
+                variant={req.status === 'approved' ? 'approved' : req.status === 'rejected' ? 'rejected' : req.status === 'cancelled' ? 'cancelled' : 'pending'} 
                 size="sm" 
               />
             </div>
           </div>
         ))}
       </div>
+
 
       {/* Bottom link */}
       <div className="pt-3 border-t border-[#E8EBE9] flex items-center justify-between text-[11px] text-[#858D91]">
